@@ -3,7 +3,7 @@ import { ProductData } from "../types";
 const ALIYUN_API_KEY = "sk-c58c447c55f542e79d4c814e5228be79";
 // 使用 CORS 代理绕过浏览器的同源策略限制
 // 注意：生产环境中建议使用自己的后端服务器转发请求
-const API_URL = "https://corsproxy.io/?https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+const API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
