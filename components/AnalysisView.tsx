@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ProductData, ScenePrompt } from '../types';
+import { ProductData, ScenePrompt, ModelType } from '../types';
 import { analyzeProductImage, generateScenePrompts } from '../services/geminiService';
 import { CheckIcon, MagicIcon } from './Icons';
 
 interface AnalysisViewProps {
   product: ProductData;
-  onAnalysisComplete: (scenes: ScenePrompt[]) => void;
+  onAnalysisComplete: (scenes: ScenePrompt[], model: ModelType) => void;
 }
 
 const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete }) => {
@@ -13,6 +13,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
   const [analysisText, setAnalysisText] = useState<string>('');
   const [prompts, setPrompts] = useState<ScenePrompt[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
+  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.5-flash-image');
 
   useEffect(() => {
     const runPipeline = async () => {
@@ -50,7 +51,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
 
   const handleProceed = () => {
     const selectedPrompts = prompts.filter((_, i) => selectedIndices.includes(i));
-    onAnalysisComplete(selectedPrompts);
+    onAnalysisComplete(selectedPrompts, selectedModel);
   };
 
   if (status !== 'ready') {
@@ -79,6 +80,46 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
           <CheckIcon /> 视觉分析报告
         </h3>
         <p className="text-slate-300 text-sm leading-relaxed">{analysisText}</p>
+      </div>
+
+      {/* Model Selection */}
+      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+        <h3 className="text-lg font-semibold text-white mb-4">选择生图模型</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div 
+            onClick={() => setSelectedModel('gemini-2.5-flash-image')}
+            className={`cursor-pointer p-4 rounded-lg border-2 flex items-center gap-4 transition-all ${
+              selectedModel === 'gemini-2.5-flash-image' 
+                ? 'border-indigo-500 bg-indigo-900/20' 
+                : 'border-slate-600 hover:bg-slate-700'
+            }`}
+          >
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedModel === 'gemini-2.5-flash-image' ? 'border-indigo-500' : 'border-slate-400'}`}>
+              {selectedModel === 'gemini-2.5-flash-image' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />}
+            </div>
+            <div>
+              <p className="font-medium text-white">Google Gemini 2.5</p>
+              <p className="text-xs text-slate-400">速度极快，创意性强</p>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setSelectedModel('qwen-image-edit-plus-2025-10-30')}
+            className={`cursor-pointer p-4 rounded-lg border-2 flex items-center gap-4 transition-all ${
+              selectedModel === 'qwen-image-edit-plus-2025-10-30' 
+                ? 'border-indigo-500 bg-indigo-900/20' 
+                : 'border-slate-600 hover:bg-slate-700'
+            }`}
+          >
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedModel === 'qwen-image-edit-plus-2025-10-30' ? 'border-indigo-500' : 'border-slate-400'}`}>
+              {selectedModel === 'qwen-image-edit-plus-2025-10-30' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />}
+            </div>
+            <div>
+              <p className="font-medium text-white">Alibaba Qwen (通义万相)</p>
+              <p className="text-xs text-slate-400">国内领先模型，质感细腻</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Scene Selection */}

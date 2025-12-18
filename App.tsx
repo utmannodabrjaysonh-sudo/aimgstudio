@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ProductData, AppStep, ScenePrompt } from './types';
+import { ProductData, AppStep, ScenePrompt, ModelType } from './types';
 import ProductForm from './components/ProductForm';
 import AnalysisView from './components/AnalysisView';
 import ResultsGallery from './components/ResultsGallery';
@@ -8,14 +8,16 @@ const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.UPLOAD);
   const [productData, setProductData] = useState<ProductData | null>(null);
   const [selectedScenes, setSelectedScenes] = useState<ScenePrompt[]>([]);
+  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.5-flash-image');
 
   const handleProductSubmit = (data: ProductData) => {
     setProductData(data);
     setStep(AppStep.ANALYZING);
   };
 
-  const handleAnalysisComplete = (scenes: ScenePrompt[]) => {
+  const handleAnalysisComplete = (scenes: ScenePrompt[], model: ModelType) => {
     setSelectedScenes(scenes);
+    setSelectedModel(model);
     setStep(AppStep.GENERATING);
   };
 
@@ -78,7 +80,8 @@ const App: React.FC = () => {
           <div className="animate-fade-in">
             <ResultsGallery 
               product={productData} 
-              scenes={selectedScenes} 
+              scenes={selectedScenes}
+              model={selectedModel}
               onReset={handleReset} 
             />
           </div>
@@ -87,7 +90,7 @@ const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 mt-auto py-8 text-center text-slate-500 text-sm">
-        <p>技术支持：Google Gemini 2.5 Flash & 3.0 Pro</p>
+        <p>技术支持：Google Gemini 2.5 Flash & Alibaba Qwen</p>
       </footer>
     </div>
   );

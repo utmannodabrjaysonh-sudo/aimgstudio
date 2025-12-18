@@ -23,6 +23,8 @@ export interface GeneratedScene {
   imageUrl?: string;
 }
 
+export type ModelType = 'gemini-2.5-flash-image' | 'qwen-image-edit-plus-2025-10-30';
+
 export enum AppStep {
   UPLOAD = 0,
   ANALYZING = 1,
