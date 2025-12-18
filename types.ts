@@ -1,0 +1,31 @@
+export interface ProductData {
+  name: string;
+  sellingPoints: string;
+  imageBase64: string;
+  mimeType: string;
+  generateCount: number; // Added for custom generation count
+}
+
+export interface AnalysisResult {
+  description: string;
+  visualAttributes: string;
+}
+
+export interface ScenePrompt {
+  en: string; // Used for generation
+  zh: string; // Used for display
+}
+
+export interface GeneratedScene {
+  id: string;
+  prompt: ScenePrompt;
+  status: 'pending' | 'generating' | 'completed' | 'failed';
+  imageUrl?: string;
+}
+
+export enum AppStep {
+  UPLOAD = 0,
+  ANALYZING = 1,
+  SCENE_SELECTION = 2,
+  GENERATING = 3,
+}
