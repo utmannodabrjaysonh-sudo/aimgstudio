@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ProductData, ScenePrompt, ModelType } from '../types';
-import { analyzeProductImage, generateScenePrompts } from '../services/geminiService';
+import { analyzeAndDraftScenes } from '../services/geminiService';
 import { CheckIcon, MagicIcon } from './Icons';
 
 interface AnalysisViewProps {
@@ -9,7 +9,7 @@ interface AnalysisViewProps {
 }
 
 const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete }) => {
-  const [status, setStatus] = useState<'analyzing' | 'generating_prompts' | 'ready'>('analyzing');
+  const [status, setStatus] = useState<'analyzing' | 'ready'>('analyzing');
   const [analysisText, setAnalysisText] = useState<string>('');
   const [prompts, setPrompts] = useState<ScenePrompt[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
@@ -18,22 +18,21 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
   useEffect(() => {
     const runPipeline = async () => {
       try {
-        // Step 1: Analyze
         setStatus('analyzing');
-        const analysis = await analyzeProductImage(product);
-        setAnalysisText(analysis);
-
-        // Step 2: Generate Prompts
-        setStatus('generating_prompts');
-        const generatedPrompts = await generateScenePrompts(product, analysis);
-        setPrompts(generatedPrompts);
+        // 并发执行：一步完成分析和场景构思，显著提升速度
+        const result = await analyzeAndDraftScenes(product);
         
-        // Select all by default
-        setSelectedIndices(generatedPrompts.map((_, i) => i));
+        setAnalysisText(result.analysis);
+        setPrompts(result.scenes);
+        
+        // 默认全选
+        setSelectedIndices(result.scenes.map((_, i) => i));
         setStatus('ready');
       } catch (error) {
         console.error(error);
-        // Error handling could be improved here
+        setAnalysisText("分析过程中遇到一点小问题，但我们准备了一些通用场景供您尝试。");
+        // Error handling mostly covered in service fallback
+        setStatus('ready');
       }
     };
 
@@ -64,26 +63,28 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
           </div>
         </div>
         <h2 className="mt-6 text-2xl font-bold text-white">
-          {status === 'analyzing' ? '正在分析视觉特征...' : '正在构思创意场景...'}
+          正在深度分析与构思...
         </h2>
-        <p className="mt-2 text-slate-400">AI 正在研究您的产品，为您寻找最佳的展示环境。</p>
+        <p className="mt-2 text-slate-400">
+          AI 正在分析产品特征，并为您构思包含<span className="text-indigo-400">展示型</span>与<span className="text-indigo-400">使用场景型</span>的混合方案。
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
       
       {/* Analysis Result */}
-      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-lg">
         <h3 className="text-lg font-semibold text-indigo-400 mb-2 flex items-center gap-2">
-          <CheckIcon /> 视觉分析报告
+          <CheckIcon /> 智能分析报告
         </h3>
         <p className="text-slate-300 text-sm leading-relaxed">{analysisText}</p>
       </div>
 
       {/* Model Selection */}
-      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-lg">
         <h3 className="text-lg font-semibold text-white mb-4">选择生图模型</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div 
@@ -116,7 +117,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
             </div>
             <div>
               <p className="font-medium text-white">Alibaba Qwen (通义万相)</p>
-              <p className="text-xs text-slate-400">国内领先模型，质感细腻</p>
+              <p className="text-xs text-slate-400">国内领先模型，适合人物与细节</p>
             </div>
           </div>
         </div>
@@ -124,8 +125,8 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
 
       {/* Scene Selection */}
       <div>
-        <h2 className="text-2xl font-bold text-white mb-4">2. 选择目标场景</h2>
-        <p className="text-slate-400 mb-6">根据您的产品，我们生成了以下场景概念。请选择您想要生成的场景。</p>
+        <h2 className="text-2xl font-bold text-white mb-4">2. 确认生成方案</h2>
+        <p className="text-slate-400 mb-6">已为您规划以下 <span className="text-indigo-400">{prompts.length}</span> 个场景，包含纯展示与场景应用。请勾选满意的方案：</p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {prompts.map((prompt, idx) => (
@@ -146,7 +147,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
                 </div>
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-medium text-slate-200">{prompt.zh}</p>
-                  <p className="text-xs text-slate-500 line-clamp-2">{prompt.en}</p>
+                  <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed opacity-70">{prompt.en}</p>
                 </div>
               </div>
             </div>
@@ -154,14 +155,14 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ product, onAnalysisComplete
         </div>
       </div>
 
-      <div className="flex justify-end pt-4">
+      <div className="flex justify-end pt-4 pb-12">
         <button
           onClick={handleProceed}
           disabled={selectedIndices.length === 0}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-indigo-500/25"
         >
           <MagicIcon />
-          生成 {selectedIndices.length} 张图片
+          开始生成 {selectedIndices.length} 张图片
         </button>
       </div>
     </div>

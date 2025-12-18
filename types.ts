@@ -3,8 +3,11 @@ export interface ProductData {
   sellingPoints: string;
   imageBase64: string;
   mimeType: string;
-  generateCount: number; // Added for custom generation count
+  generateCount: number;
+  aspectRatio: AspectRatio; // Added aspect ratio selection
 }
+
+export type AspectRatio = '1:1' | '3:4' | '4:3' | '9:16' | '16:9';
 
 export interface AnalysisResult {
   description: string;

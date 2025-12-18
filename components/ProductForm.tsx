@@ -1,15 +1,24 @@
 import React, { useRef, useState } from 'react';
-import { ProductData } from '../types';
+import { ProductData, AspectRatio } from '../types';
 import { UploadIcon } from './Icons';
 
 interface ProductFormProps {
   onNext: (data: ProductData) => void;
 }
 
+const ASPECT_RATIOS: { value: AspectRatio; label: string; iconClass: string }[] = [
+  { value: '1:1', label: '正方形 (1:1)', iconClass: 'w-6 h-6 border-2 border-current rounded-sm' },
+  { value: '3:4', label: '社交媒体 (3:4)', iconClass: 'w-5 h-7 border-2 border-current rounded-sm' },
+  { value: '4:3', label: '电商横图 (4:3)', iconClass: 'w-7 h-5 border-2 border-current rounded-sm' },
+  { value: '9:16', label: '手机全屏 (9:16)', iconClass: 'w-4 h-7 border-2 border-current rounded-sm' },
+  { value: '16:9', label: '宽屏海报 (16:9)', iconClass: 'w-7 h-4 border-2 border-current rounded-sm' },
+];
+
 const ProductForm: React.FC<ProductFormProps> = ({ onNext }) => {
   const [name, setName] = useState('');
   const [sellingPoints, setSellingPoints] = useState('');
   const [generateCount, setGenerateCount] = useState<number>(4);
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [fileData, setFileData] = useState<{ base64: string; mimeType: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,7 +52,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ onNext }) => {
         sellingPoints,
         imageBase64: fileData.base64,
         mimeType: fileData.mimeType,
-        generateCount
+        generateCount,
+        aspectRatio
       });
     }
   };
@@ -112,6 +122,28 @@ const ProductForm: React.FC<ProductFormProps> = ({ onNext }) => {
             placeholder="例如：透气网布，腰部支撑，现代设计，时尚黑色..."
             required
           />
+        </div>
+
+        {/* Aspect Ratio Selection */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-3">生成尺寸比例</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            {ASPECT_RATIOS.map((ratio) => (
+              <button
+                key={ratio.value}
+                type="button"
+                onClick={() => setAspectRatio(ratio.value)}
+                className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
+                  aspectRatio === ratio.value
+                    ? 'border-indigo-500 bg-indigo-900/30 text-indigo-300'
+                    : 'border-slate-600 bg-slate-800/50 text-slate-400 hover:bg-slate-700'
+                }`}
+              >
+                <div className={`mb-2 ${ratio.iconClass}`}></div>
+                <span className="text-xs font-medium">{ratio.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Generate Count Slider */}
