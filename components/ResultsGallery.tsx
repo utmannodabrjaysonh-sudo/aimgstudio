@@ -20,47 +20,40 @@ const ResultsGallery: React.FC<ResultsGalleryProps> = ({ product, scenes, model,
     }))
   );
 
-  // 使用 Ref 记录已开始处理的任务ID，防止 React 重渲染导致重复请求
   const processingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    // 1. 找出所有处于 pending 状态且尚未开始处理的任务
     const itemsToProcess = results.filter(r => r.status === 'pending' && !processingRef.current.has(r.id));
-
     if (itemsToProcess.length === 0) return;
 
-    // 2. 立即将这些任务标记为已处理，防止后续重复触发
     itemsToProcess.forEach(item => processingRef.current.add(item.id));
 
-    // 3. 更新 UI 状态为 "正在生成"
     setResults(prev => prev.map(r => 
       itemsToProcess.some(item => item.id === r.id)
         ? { ...r, status: 'generating' }
         : r
     ));
 
-    // 4. 处理请求队列
     const processQueue = async () => {
-      // 定义处理单个项目的函数
       const processItem = async (item: GeneratedScene) => {
         try {
           let imageUrl: string;
 
           if (model === 'qwen-image-edit-plus-2025-10-30') {
-              // 使用阿里云 Qwen
+              // Qwen currently ignores aspect ratio param in this specific simplified call, 
+              // but real implementation would need to pass it if API supports it.
+              // For now, we pass the prompt.
               imageUrl = await generateImageWithQwen(product, item.prompt.en);
           } else {
-              // 默认使用 Gemini
-              imageUrl = await generateMarketingImage(product, item.prompt.en);
+              // Gemini supports explicit AR param
+              imageUrl = await generateMarketingImage(product, item.prompt.en, item.prompt.aspectRatio);
           }
           
-          // 单个任务完成后更新状态
           setResults(prev => prev.map(r => 
             r.id === item.id ? { ...r, status: 'completed', imageUrl } : r
           ));
         } catch (error) {
           console.error(`Failed to generate scene ${item.id}`, error);
-          // 单个任务失败后更新状态
           setResults(prev => prev.map(r => 
             r.id === item.id ? { ...r, status: 'failed' } : r
           ));
@@ -68,14 +61,11 @@ const ResultsGallery: React.FC<ResultsGalleryProps> = ({ product, scenes, model,
       };
 
       if (model === 'qwen-image-edit-plus-2025-10-30') {
-        // 如果是 Qwen 模型，串行处理以避免触发 429 速率限制
         for (const item of itemsToProcess) {
           await processItem(item);
-          // 额外的安全延迟，确保不触发 QPS 限制
           await new Promise(resolve => setTimeout(resolve, 500)); 
         }
       } else {
-        // 如果是 Gemini，可以并发处理提高速度
         await Promise.all(itemsToProcess.map(item => processItem(item)));
       }
     };
@@ -94,7 +84,7 @@ const ResultsGallery: React.FC<ResultsGalleryProps> = ({ product, scenes, model,
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
            <h2 className="text-2xl font-bold text-white">3. 生成结果</h2>
@@ -111,10 +101,17 @@ const ResultsGallery: React.FC<ResultsGalleryProps> = ({ product, scenes, model,
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {results.map((scene) => (
           <div key={scene.id} className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 shadow-lg flex flex-col">
-            <div className="relative aspect-[4/3] bg-slate-900 w-full group">
+            {/* Aspect Ratio Container */}
+            <div className={`relative w-full bg-slate-900 group ${
+                scene.prompt.aspectRatio === '9:16' ? 'aspect-[9/16]' :
+                scene.prompt.aspectRatio === '16:9' ? 'aspect-[16/9]' :
+                scene.prompt.aspectRatio === '3:4' ? 'aspect-[3/4]' :
+                scene.prompt.aspectRatio === '4:3' ? 'aspect-[4/3]' :
+                'aspect-square'
+            }`}>
               {scene.status === 'completed' && scene.imageUrl ? (
                 <img 
                   src={scene.imageUrl} 
@@ -122,35 +119,39 @@ const ResultsGallery: React.FC<ResultsGalleryProps> = ({ product, scenes, model,
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               ) : scene.status === 'failed' ? (
-                <div className="absolute inset-0 flex items-center justify-center text-red-400 p-4 text-center">
-                  生成失败，请稍后重试。
+                <div className="absolute inset-0 flex items-center justify-center text-red-400 p-4 text-center text-sm">
+                  生成失败
                 </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
                   <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                  <span className="text-sm font-medium">
-                    {scene.status === 'generating' ? '正在渲染...' : '排队中...'}
+                  <span className="text-xs font-medium">
+                    {scene.status === 'generating' ? 'AI 渲染中...' : '排队中...'}
                   </span>
                 </div>
               )}
+              
+              {/* Type Badge */}
+              <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded">
+                {scene.prompt.type.toUpperCase()}
+              </div>
             </div>
             
-            <div className="p-4 flex-1 flex flex-col justify-between">
+            <div className="p-3 flex-1 flex flex-col justify-between">
               <div>
-                {/* Show Chinese prompt primarily */}
-                <p className="text-sm text-white mb-2 font-medium">
+                <p className="text-sm text-white mb-1 font-medium line-clamp-2" title={scene.prompt.zh}>
                   {scene.prompt.zh}
                 </p>
-                {/* Optional: Show English prompt smaller or in tooltip if needed, keeping simple for now */}
+                <p className="text-xs text-slate-500">{scene.prompt.aspectRatio}</p>
               </div>
               
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-end mt-3">
                 <button
                   onClick={() => scene.imageUrl && downloadImage(scene.imageUrl, scene.id)}
                   disabled={scene.status !== 'completed'}
-                  className="px-4 py-2 text-xs font-semibold rounded bg-white text-slate-900 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-1.5 text-xs font-semibold rounded bg-white text-slate-900 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  下载高清图
+                  下载
                 </button>
               </div>
             </div>
