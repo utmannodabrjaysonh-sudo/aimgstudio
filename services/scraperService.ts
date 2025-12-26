@@ -1,7 +1,9 @@
+
 // ============================================================================
 // Proxy Configuration
 // ============================================================================
-const PRIMARY_PROXY = "https://live.fastbossshop.cn/proxy.php?url=";
+// Updated to use the new robust PHP proxy
+const PRIMARY_PROXY = "https://live.fastbossshop.cn/qwen_proxy.php?url=";
 const BACKUP_PROXY = "https://corsproxy.io/?";
 
 // Kept for compatibility with existing components if needed, though mostly unused now

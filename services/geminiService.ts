@@ -127,8 +127,16 @@ export const analyzeAndDraftScenes = async (product: ProductData): Promise<Combi
     
     // Map code to English instruction for the prompt
     let langName = "English";
-    if (langCode === 'zh') langName = "Simplified Chinese";
-    if (langCode === 'ru') langName = "Russian";
+    let langInstruction = "Ensure all text is in English.";
+    
+    if (langCode === 'zh') {
+        langName = "Simplified Chinese (简体中文)";
+        langInstruction = "Strictly use Chinese characters for any text/labels.";
+    }
+    if (langCode === 'ru') {
+        langName = "Russian (Cyrillic)";
+        langInstruction = "CRITICAL: TRANSLATE specific keywords into Russian (Cyrillic). Do NOT use English text.";
+    }
 
     const enabledConfigs = product.generationConfigs.filter(c => c.enabled);
     
@@ -141,7 +149,7 @@ export const analyzeAndDraftScenes = async (product: ProductData): Promise<Combi
               Type: LIFESTYLE SCENE (Background Only).
               Goal: Show the product being used naturally.
               Style: Soft lighting, shallow depth of field (blurred background).
-              Text Rule: NO TEXT.
+              Text Rule: NO TEXT allowed in background.
               `; 
               break;
             case 'marketing': 
@@ -153,7 +161,8 @@ export const analyzeAndDraftScenes = async (product: ProductData): Promise<Combi
                 1. "Zoom Bubble": Main shot + 1 or 2 Circular "Magnifying Glass" insets showing a close-up texture or button.
                 2. "Icon List": Product on one side + A vertical column on the other side containing 3 small vector icons + short text labels.
                 3. "Split Layout": 60% Product Usage Shot / 40% Solid Color Block with a Big Header Text and bullet points.
-              Text Rule: MANDATORY. Render specific feature labels (e.g. "Heat", "Soft", "Silent") in ${langName} inside the graphic elements.
+              Text Rule: MANDATORY. Render specific feature labels (e.g. "Heat", "Soft", "Silent") in ${langName}. 
+              **IMPORTANT**: You must TRANSLATE the feature keywords into ${langName} and include the translated word explicitly in the prompt (e.g., "text label saying 'ТЕПЛО'").
               `; 
               break;
             case 'aplus': 
@@ -162,7 +171,7 @@ export const analyzeAndDraftScenes = async (product: ProductData): Promise<Combi
               Goal: Show dimensions, layers, or comparison.
               Style: Clean Studio White/Grey background with floating elements.
               Composition: "Exploded View" (parts floating apart) OR "Dimensions" (arrows indicating width/height).
-              Text Rule: Render clear numeric labels or feature names.
+              Text Rule: Render clear numeric labels or feature names in ${langName}.
               `; 
               break;
         }
@@ -190,28 +199,31 @@ export const analyzeAndDraftScenes = async (product: ProductData): Promise<Combi
             Product Name: ${product.name}
             Selling Points: ${product.sellingPoints}
             Target Audience: Online Shoppers (They need info, not just art).
+            Target Language: ${langName} (${langInstruction})
             
             ${bgInstruction}
 
             ** MISSION **
             Create prompts for High-Conversion Listing Images.
-            For 'marketing', DO NOT make "posters". Make "Infographics".
             
             ** STEP 1: FEATURE EXTRACTION **
-            Identify 1-3 concrete features (e.g., "Deep Tissue", "Heating", "Adjustable").
+            Identify 1-3 concrete features.
             
-            ** STEP 2: VISUALIZATION STRATEGY (The "Amazon Style") **
+            ** STEP 2: LANGUAGE LOCALIZATION (CRITICAL) **
+            If the target language is NOT English, you MUST translate the identified features into ${langName} NOW.
+            The generated prompt must explicitly say: "text label reading '${langName}_WORD'".
+            
+            ** STEP 3: VISUALIZATION STRATEGY **
             - **Zoom In**: If the point is "Material", prompt for a "Circular Zoom Bubble" overlay.
             - **Icons**: If the point is "Modes", prompt for "Side column with vector icons".
-            - **Arrows**: If the point is "Ergonomic", prompt for "Curved arrows showing airflow or shape".
 
-            ** STEP 3: GENERATE PROMPTS **
-            Generate prompts that explicitly describe the LAYOUT and GRAPHIC ELEMENTS.
+            ** STEP 4: GENERATE PROMPTS **
+            Generate prompts that explicitly describe the LAYOUT, GRAPHIC ELEMENTS, and EXACT TEXT to render.
             
             ** CRITICAL RULES **
             1. **MARKETING = INFOGRAPHIC**: The prompt must ask for "Graphic overlays", "Zoom bubbles", "Icons", or "Split screen".
-            2. **FONTS**: Ask for "Sans-serif UI font", "Clean label text". Avoid "Graffiti" or "Artistic" fonts.
-            3. **COLOR**: Use brand colors (usually Blue/White/Orange for trustworthiness) for the graphic elements.
+            2. **FONTS**: Ask for "Sans-serif UI font", "Clean label text".
+            3. **LANGUAGE**: ENSURE the prompt explicitly contains the ${langName} words to be rendered. Do not just say "Russian text", say "text label saying 'Тепло'".
 
             Requested Batches:
             ${taskInstructions}
@@ -221,8 +233,8 @@ export const analyzeAndDraftScenes = async (product: ProductData): Promise<Combi
               "analysis": "Brief analysis in Chinese...",
               "scenes": [
                 {
-                  "en": "Full detailed prompt including layout instructions...",
-                  "zh": "Short Chinese Title (e.g. '核心卖点-气泡放大图', '功能列表-图标排版')",
+                  "en": "Full detailed prompt including layout instructions AND specific translated text labels...",
+                  "zh": "Short Chinese Title (e.g. '核心卖点-气泡放大图')",
                   "type": "scene" | "marketing" | "aplus",
                   "aspectRatio": "1:1" | "3:4" | "4:3" | "9:16" | "16:9"
                 }
@@ -285,6 +297,17 @@ export const generateMarketingImage = async (
   aspectRatio: string
 ): Promise<string> => {
   try {
+    let langName = "English";
+    let textRule = "Text should be in English.";
+    
+    if (product.targetLanguage === 'zh') {
+        langName = "Simplified Chinese";
+        textRule = "STRICT REQUIREMENT: All generated text/labels MUST be in SIMPLIFIED CHINESE CHARACTERS. No English.";
+    } else if (product.targetLanguage === 'ru') {
+        langName = "Russian";
+        textRule = "STRICT REQUIREMENT: All generated text/labels MUST be in RUSSIAN (CYRILLIC). Do NOT use English text.";
+    }
+
     const response = await generateWithRetry({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -302,18 +325,13 @@ export const generateMarketingImage = async (
             
             ** STRICT CONSTRAINTS **:
             1. **PRODUCT FIDELITY**: Keep the product EXACTLY as is.
-            2. **STYLE**: "E-commerce Infographic". NOT a movie poster. NOT abstract art.
-            3. **LAYOUT**: Follow the prompt's layout instructions (e.g. Zoom Bubbles, Split Screen, Icon List).
-               - If asking for "Zoom Bubble", render a clear circular overlay magnifying a detail.
-               - If asking for "Icons", render simple flat vector icons.
+            2. **STYLE**: "E-commerce Infographic". Clean, Professional.
+            3. **LAYOUT**: Follow the prompt's layout instructions (e.g. Zoom Bubbles, Split Screen).
             
-            ** TEXT RENDERING **:
-            - Text must be legible, clean, sans-serif (Helvetica/Arial style).
-            - Text acts as labels or headers for the features.
+            ** TEXT / LANGUAGE RULE (CRITICAL) **:
+            ${textRule}
+            The prompt below contains specific words in ${langName}. Render them accurately.
             
-            ** LIGHTING **:
-            - Bright, clean commercial lighting. No dark/moody shadows unless specified.
-
             ** SCENE PROMPT **: ${scenePromptEn}
             
             ${product.removeBackground ? 'Action: Extract the product cleanly and place it in the new environment.' : 'Action: Blend the product naturally.'}
